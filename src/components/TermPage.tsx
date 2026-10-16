@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Course, CourseSchedule } from '../services/courseSchedule';
 import { TermSelector, type Term } from './TermSelector';
+import { CoursePlanModal } from './CoursePlanModal';
 
 interface CourseProps {
   course: Course;
@@ -42,9 +43,14 @@ const CourseCard = ({ course, selected, onToggle }: CourseProps) => (
 export const TermPage = ({ schedule }: TermPageProps) => {
   const [selectedTerm, setSelectedTerm] = useState<Term>('Fall');
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [isPlanOpen, setIsPlanOpen] = useState(false);
   const courses = Object.entries(schedule.courses).filter(
     ([, course]) => course.term === selectedTerm,
   );
+  const planEntries = selectedCourses.flatMap((id) => {
+    const course = schedule.courses[id];
+    return course === undefined ? [] : [{ id, course }];
+  });
 
   const toggleCourse = (id: string) => {
     setSelectedCourses((prev) =>
@@ -54,7 +60,19 @@ export const TermPage = ({ schedule }: TermPageProps) => {
 
   return (
     <>
-      <TermSelector selectedTerm={selectedTerm} onTermChange={setSelectedTerm} />
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <TermSelector selectedTerm={selectedTerm} onTermChange={setSelectedTerm} />
+        <button
+          type="button"
+          onClick={() => setIsPlanOpen(true)}
+          className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100"
+        >
+          Course Plan
+        </button>
+      </div>
+      {isPlanOpen && (
+        <CoursePlanModal selectedCourses={planEntries} onClose={() => setIsPlanOpen(false)} />
+      )}
       <section
         aria-label={`${selectedTerm} courses`}
         className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 min-[900px]:grid-cols-4"

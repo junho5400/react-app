@@ -8,7 +8,7 @@ interface TermSelectorProps {
 const terms: Term[] = ['Fall', 'Winter', 'Spring'];
 
 export const TermSelector = ({ selectedTerm, onTermChange }: TermSelectorProps) => (
-  <div className="mb-4 flex gap-2" role="group" aria-label="Select course term">
+  <div className="flex gap-2" role="group" aria-label="Select course term">
     {terms.map((term) => (
       <button
         key={term}
