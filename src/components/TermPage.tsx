@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { Course, CourseSchedule } from '../services/courseSchedule';
 import { isUnavailable } from '../utilities/timeConflicts';
 import { TermSelector, type Term } from './TermSelector';
 import { CoursePlanModal } from './CoursePlanModal';
+import { useSelectedCourses } from '../services/scheduleContext';
 
 interface CourseProps {
+  id: string;
   course: Course;
   selected: boolean;
   unavailable: boolean;
@@ -15,49 +18,68 @@ interface TermPageProps {
   schedule: CourseSchedule;
 }
 
-const CourseCard = ({ course, selected, unavailable, onToggle }: CourseProps) => {
+const CourseCard = ({ id, course, selected, unavailable, onToggle }: CourseProps) => {
   const disabled = unavailable && !selected;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={selected}
-      disabled={disabled}
-      aria-disabled={disabled}
-      title={disabled ? 'Time conflict with a selected course' : undefined}
-      className={`flex h-full min-h-[204px] w-full flex-col rounded-md border text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 ${
+    <div
+      className={`flex h-full min-h-[204px] w-full flex-col rounded-md border ${
         selected
-          ? 'cursor-pointer border-neutral-900 bg-neutral-900 text-white'
+          ? 'border-neutral-900 bg-neutral-900 text-white'
           : disabled
-            ? 'cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 opacity-70'
-            : 'cursor-pointer border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100'
+            ? 'border-neutral-200 bg-neutral-100 text-neutral-400 opacity-70'
+            : 'border-neutral-300 bg-white text-neutral-900'
       }`}
     >
-      <span className="flex-1 px-6 py-6">
-        <span className="mb-2 block text-xl font-normal leading-6">
-          {course.term} CS {course.number}
-        </span>
-        <span className="block text-sm leading-[21px]">{course.title}</span>
-        {disabled && (
-          <span className="mt-2 block text-sm font-medium leading-[21px]">
-            Time conflict — unavailable
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={selected}
+        disabled={disabled}
+        aria-disabled={disabled}
+        title={disabled ? 'Time conflict with a selected course' : undefined}
+        className={`flex w-full flex-1 flex-col rounded-t-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 ${
+          selected
+            ? 'cursor-pointer'
+            : disabled
+              ? 'cursor-not-allowed'
+              : 'cursor-pointer hover:bg-neutral-100'
+        }`}
+      >
+        <span className="flex-1 px-6 py-6">
+          <span className="mb-2 block text-xl font-normal leading-6">
+            {course.term} CS {course.number}
           </span>
-        )}
-      </span>
-      <span
-        className={`block border-t px-4 py-2 text-center text-sm leading-[21px] ${
+          <span className="block text-sm leading-[21px]">{course.title}</span>
+          {disabled && (
+            <span className="mt-2 block text-sm font-medium leading-[21px]">
+              Time conflict — unavailable
+            </span>
+          )}
+        </span>
+        <span
+          className={`block border-t px-4 py-2 text-center text-sm leading-[21px] ${
+            selected ? 'border-white/25' : 'border-neutral-300'
+          }`}
+        >
+          {course.meets}
+        </span>
+      </button>
+      <Link
+        to="/edit/$courseId"
+        params={{ courseId: id }}
+        className={`block border-t px-4 py-2 text-center text-sm font-medium leading-[21px] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 ${
           selected ? 'border-white/25' : 'border-neutral-300'
         }`}
       >
-        {course.meets}
-      </span>
-    </button>
+        Edit
+      </Link>
+    </div>
   );
 };
 
 export const TermPage = ({ schedule }: TermPageProps) => {
   const [selectedTerm, setSelectedTerm] = useState<Term>('Fall');
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [selectedCourses, setSelectedCourses] = useSelectedCourses();
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const courses = Object.entries(schedule.courses).filter(
     ([, course]) => course.term === selectedTerm,
@@ -112,6 +134,7 @@ export const TermPage = ({ schedule }: TermPageProps) => {
           return (
             <CourseCard
               key={id}
+              id={id}
               course={course}
               selected={selected}
               unavailable={isUnavailable(course, others)}
