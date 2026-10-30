@@ -1,7 +1,33 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import {
+  emitDatabaseValue,
+  stubDatabaseSubscription,
+  waitForSubscription,
+} from './test-utils/realtimeDatabase';
+
+const { mockGetDatabase, mockOnValue, mockRef } = vi.hoisted(() => ({
+  mockGetDatabase: vi.fn(() => ({})),
+  mockOnValue: vi.fn(() => vi.fn()),
+  mockRef: vi.fn((_database: unknown, path: string) => ({ path })),
+}));
+
+vi.mock('firebase/database', () => ({
+  getDatabase: mockGetDatabase,
+  onValue: mockOnValue,
+  ref: mockRef,
+}));
+
+beforeEach(() => {
+  mockGetDatabase.mockReset();
+  mockOnValue.mockReset();
+  mockRef.mockReset();
+  mockGetDatabase.mockReturnValue({});
+  mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
+  stubDatabaseSubscription(mockOnValue);
+});
 
 const schedule = {
   title: 'Test Schedule',
@@ -11,19 +37,10 @@ const schedule = {
   },
 };
 
-const mockFetch = () =>
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => ({ ok: true, json: async () => schedule }) as Response),
-  );
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 const openEditForm = async () => {
-  mockFetch();
   const { container } = render(<App />);
+  await waitForSubscription(mockOnValue);
+  emitDatabaseValue(mockOnValue, schedule);
   await screen.findByRole('heading', { name: 'Test Schedule' });
   // The App router persists across tests, so only navigate when on the list page.
   if (screen.queryByRole('heading', { name: 'Edit Fall CS 101' }) === null) {

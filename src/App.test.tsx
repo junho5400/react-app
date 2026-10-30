@@ -1,7 +1,33 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import {
+  emitDatabaseValue,
+  stubDatabaseSubscription,
+  waitForSubscription,
+} from './test-utils/realtimeDatabase';
+
+const { mockGetDatabase, mockOnValue, mockRef } = vi.hoisted(() => ({
+  mockGetDatabase: vi.fn(() => ({})),
+  mockOnValue: vi.fn(() => vi.fn()),
+  mockRef: vi.fn((_database: unknown, path: string) => ({ path })),
+}));
+
+vi.mock('firebase/database', () => ({
+  getDatabase: mockGetDatabase,
+  onValue: mockOnValue,
+  ref: mockRef,
+}));
+
+beforeEach(() => {
+  mockGetDatabase.mockReset();
+  mockOnValue.mockReset();
+  mockRef.mockReset();
+  mockGetDatabase.mockReturnValue({});
+  mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
+  stubDatabaseSubscription(mockOnValue);
+});
 
 const schedule = {
   title: 'Test Schedule',
@@ -20,20 +46,16 @@ const conflictSchedule = {
   },
 };
 
-const mockFetch = (data: typeof schedule = schedule) =>
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => ({ ok: true, json: async () => data }) as Response),
-  );
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+const renderWithSchedule = async (data: typeof schedule = schedule) => {
+  const result = render(<App />);
+  await waitForSubscription(mockOnValue);
+  emitDatabaseValue(mockOnValue, data);
+  return result;
+};
 
 describe('Edit course flow', () => {
   it('opens a prefilled edit form from a card Edit link and cancels back to the list', async () => {
-    mockFetch();
-    const { container } = render(<App />);
+    const { container } = await renderWithSchedule();
 
     await screen.findByRole('button', { name: /CS 101/ });
 
@@ -71,8 +93,7 @@ describe('Edit course flow', () => {
   });
 
   it('keeps selected courses and conflict prevention after visiting edit and canceling', async () => {
-    mockFetch(conflictSchedule);
-    render(<App />);
+    await renderWithSchedule(conflictSchedule);
 
     const selected = await screen.findByRole('button', { name: /CS 101/ });
     fireEvent.click(selected);

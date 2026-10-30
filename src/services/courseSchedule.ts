@@ -1,6 +1,3 @@
-const COURSE_SCHEDULE_URL =
-  'https://courses.cs.northwestern.edu/394/guides/data/cs-courses.php';
-
 export interface Course {
   term: string;
   number: string;
@@ -16,9 +13,9 @@ export interface CourseSchedule {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const parseCourseSchedule = (value: unknown): CourseSchedule => {
+export const parseCourseSchedule = (value: unknown): CourseSchedule => {
   if (!isRecord(value) || typeof value.title !== 'string' || !isRecord(value.courses)) {
-    throw new Error('The course schedule response has an invalid format.');
+    throw new Error('The course schedule data has an invalid format.');
   }
 
   const courses: Record<string, Course> = {};
@@ -42,14 +39,4 @@ const parseCourseSchedule = (value: unknown): CourseSchedule => {
   }
 
   return { title: value.title, courses };
-};
-
-export const fetchCourseSchedule = async (signal?: AbortSignal): Promise<CourseSchedule> => {
-  const response = await fetch(COURSE_SCHEDULE_URL, { signal });
-  if (!response.ok) {
-    throw new Error(`Could not load the course schedule (HTTP ${response.status}).`);
-  }
-
-  const data: unknown = await response.json();
-  return parseCourseSchedule(data);
 };
