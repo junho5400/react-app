@@ -8,24 +8,28 @@ import {
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
 
-const { mockGetDatabase, mockOnValue, mockRef } = vi.hoisted(() => ({
+const { mockGetDatabase, mockOnValue, mockRef, mockUpdate } = vi.hoisted(() => ({
   mockGetDatabase: vi.fn(() => ({})),
   mockOnValue: vi.fn(() => vi.fn()),
   mockRef: vi.fn((_database: unknown, path: string) => ({ path })),
+  mockUpdate: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('firebase/database', () => ({
   getDatabase: mockGetDatabase,
   onValue: mockOnValue,
   ref: mockRef,
+  update: mockUpdate,
 }));
 
 beforeEach(() => {
   mockGetDatabase.mockReset();
   mockOnValue.mockReset();
   mockRef.mockReset();
+  mockUpdate.mockReset();
   mockGetDatabase.mockReturnValue({});
   mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
+  mockUpdate.mockImplementation(() => Promise.resolve());
   stubDatabaseSubscription(mockOnValue);
 });
 
@@ -73,17 +77,17 @@ describe('Edit course flow', () => {
     expect(screen.getByLabelText('Title')).toHaveValue('Alpha');
     expect(screen.getByLabelText('Meeting times')).toHaveValue('MWF 9:00-9:50');
 
-    // No submit control on the form.
-    expect(
-      within(form).queryByRole('button', { name: /submit/i }),
-    ).not.toBeInTheDocument();
-    expect(form.querySelector('[type="submit"]')).toBeNull();
+    // Submit starts disabled because nothing changed.
+    const submit = within(form).getByRole('button', { name: 'Submit' });
+    expect(submit).toHaveAttribute('type', 'submit');
+    expect(submit).toBeDisabled();
 
-    // Submitting is intercepted and stays on the edit screen.
+    // Submitting unchanged values writes nothing and stays on the edit screen.
     fireEvent.submit(form);
     expect(
       screen.getByRole('heading', { name: 'Edit Fall CS 101' }),
     ).toBeInTheDocument();
+    expect(mockUpdate).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await screen.findByRole('button', { name: /CS 101/ });

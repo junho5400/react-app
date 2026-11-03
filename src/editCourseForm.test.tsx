@@ -8,24 +8,28 @@ import {
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
 
-const { mockGetDatabase, mockOnValue, mockRef } = vi.hoisted(() => ({
+const { mockGetDatabase, mockOnValue, mockRef, mockUpdate } = vi.hoisted(() => ({
   mockGetDatabase: vi.fn(() => ({})),
   mockOnValue: vi.fn(() => vi.fn()),
   mockRef: vi.fn((_database: unknown, path: string) => ({ path })),
+  mockUpdate: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('firebase/database', () => ({
   getDatabase: mockGetDatabase,
   onValue: mockOnValue,
   ref: mockRef,
+  update: mockUpdate,
 }));
 
 beforeEach(() => {
   mockGetDatabase.mockReset();
   mockOnValue.mockReset();
   mockRef.mockReset();
+  mockUpdate.mockReset();
   mockGetDatabase.mockReturnValue({});
   mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
+  mockUpdate.mockImplementation(() => Promise.resolve());
   stubDatabaseSubscription(mockOnValue);
 });
 
@@ -64,10 +68,10 @@ describe('Edit course validation', () => {
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    expect(
-      within(form).queryByRole('button', { name: /submit/i }),
-    ).not.toBeInTheDocument();
-    expect(form.querySelector('[type="submit"]')).toBeNull();
+    const submit = within(form).getByRole('button', { name: 'Submit' });
+    expect(submit).toHaveAttribute('type', 'submit');
+    expect(submit).toBeDisabled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('shows and clears a title error as the user edits', async () => {

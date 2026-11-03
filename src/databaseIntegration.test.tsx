@@ -9,24 +9,28 @@ import {
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
 
-const { mockGetDatabase, mockOnValue, mockRef } = vi.hoisted(() => ({
+const { mockGetDatabase, mockOnValue, mockRef, mockUpdate } = vi.hoisted(() => ({
   mockGetDatabase: vi.fn(() => ({})),
   mockOnValue: vi.fn(() => vi.fn()),
   mockRef: vi.fn((_database: unknown, path: string) => ({ path })),
+  mockUpdate: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('firebase/database', () => ({
   getDatabase: mockGetDatabase,
   onValue: mockOnValue,
   ref: mockRef,
+  update: mockUpdate,
 }));
 
 beforeEach(() => {
   mockGetDatabase.mockReset();
   mockOnValue.mockReset();
   mockRef.mockReset();
+  mockUpdate.mockReset();
   mockGetDatabase.mockReturnValue({});
   mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
+  mockUpdate.mockImplementation(() => Promise.resolve());
   stubDatabaseSubscription(mockOnValue);
 });
 
@@ -120,5 +124,6 @@ describe('Schedule from Realtime Database', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await screen.findByRole('button', { name: /CS 101/ });
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
-import type { FormEvent } from 'react';
+import { ref, update } from 'firebase/database';
 import { useSchedule } from '../services/scheduleContext';
 import type { Course } from '../services/courseSchedule';
 import { courseResolver, type CourseFormData } from '../utilities/courseValidation';
+import { database } from '../utilities/firebase';
 
 export const Route = createFileRoute('/edit/$courseId')({
   component: EditCourseComponent,
@@ -45,14 +47,27 @@ const CourseField = ({ name, label, errors, register }: CourseFieldProps) => {
 };
 
 interface EditCourseFormProps {
+  courseId: string;
   course: Course;
   onCancel: () => void;
+  onSaved: () => void;
 }
 
-const EditCourseForm = ({ course, onCancel }: EditCourseFormProps) => {
+const isSameCourseData = (data: CourseFormData, course: Course): boolean =>
+  data.title === course.title &&
+  data.term === course.term &&
+  data.number === course.number &&
+  data.meets === course.meets;
+
+const EditCourseForm = ({ courseId, course, onCancel, onSaved }: EditCourseFormProps) => {
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveInFlight = useRef(false);
   const {
     register,
-    formState: { errors },
+    handleSubmit,
+    watch,
+    formState: { errors, isValid, isSubmitting },
   } = useForm<CourseFormData>({
     defaultValues: {
       title: course.title,
@@ -64,17 +79,66 @@ const EditCourseForm = ({ course, onCancel }: EditCourseFormProps) => {
     resolver: courseResolver,
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const currentValues = watch();
+  // Compare against the original course so a value changed and then changed
+  // back counts as unchanged. Title is trimmed to match Zod's parsing.
+  const hasNoChanges = isSameCourseData(
+    { ...currentValues, title: currentValues.title.trim() },
+    course,
+  );
+  const hasErrors = Object.keys(errors).length > 0;
+  const submitDisabled = hasNoChanges || hasErrors || !isValid || isSubmitting || isSaving;
+
+  const onSubmit = async (data: CourseFormData) => {
+    if (saveInFlight.current) return;
+    // Never write unchanged values, even when submitted programmatically.
+    if (isSameCourseData(data, course)) return;
+    saveInFlight.current = true;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      // update() merges these fields into the existing course only; sibling
+      // courses and unrelated /schedule fields are left untouched. Saving
+      // requires database rules permitting writes at
+      // /schedule/courses/$courseId (for example, for signed-in users);
+      // unrestricted public write access must remain disabled.
+      await update(ref(database, `/schedule/courses/${courseId}`), {
+        title: data.title,
+        term: data.term,
+        number: data.number,
+        meets: data.meets,
+      });
+      onSaved();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      setSaveError(
+        `Failed to save changes: ${detail} Please check your connection and permissions, then try again.`,
+      );
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <CourseField name="title" label="Title" errors={errors} register={register} />
       <CourseField name="term" label="Term" errors={errors} register={register} />
       <CourseField name="number" label="Course number" errors={errors} register={register} />
       <CourseField name="meets" label="Meeting times" errors={errors} register={register} />
-      <div>
+      {saveError !== null && (
+        <p role="alert" className="text-sm font-normal text-red-600">
+          {saveError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={submitDisabled}
+          className="rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Submit
+        </button>
         <button
           type="button"
           onClick={onCancel}
@@ -94,6 +158,10 @@ function EditCourseComponent() {
   const course = schedule.courses[courseId];
 
   const handleCancel = () => {
+    void navigate({ to: '/' });
+  };
+
+  const handleSaved = () => {
     void navigate({ to: '/' });
   };
 
@@ -117,7 +185,13 @@ function EditCourseComponent() {
       <h2 className="mb-4 text-xl font-semibold">
         Edit {course.term} CS {course.number}
       </h2>
-      <EditCourseForm key={courseId} course={course} onCancel={handleCancel} />
+      <EditCourseForm
+        key={courseId}
+        courseId={courseId}
+        course={course}
+        onCancel={handleCancel}
+        onSaved={handleSaved}
+      />
     </section>
   );
 }
