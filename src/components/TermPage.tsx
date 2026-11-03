@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { Course, CourseSchedule } from '../services/courseSchedule';
+import { useAuth } from '../hooks/useAuth';
 import { isUnavailable } from '../utilities/timeConflicts';
 import { TermSelector, type Term } from './TermSelector';
 import { CoursePlanModal } from './CoursePlanModal';
@@ -11,6 +12,7 @@ interface CourseProps {
   course: Course;
   selected: boolean;
   unavailable: boolean;
+  canEdit: boolean;
   onToggle: () => void;
 }
 
@@ -18,7 +20,7 @@ interface TermPageProps {
   schedule: CourseSchedule;
 }
 
-const CourseCard = ({ id, course, selected, unavailable, onToggle }: CourseProps) => {
+const CourseCard = ({ id, course, selected, unavailable, canEdit, onToggle }: CourseProps) => {
   const disabled = unavailable && !selected;
   return (
     <div
@@ -64,20 +66,23 @@ const CourseCard = ({ id, course, selected, unavailable, onToggle }: CourseProps
           {course.meets}
         </span>
       </button>
-      <Link
-        to="/edit/$courseId"
-        params={{ courseId: id }}
-        className={`block border-t px-4 py-2 text-center text-sm font-medium leading-[21px] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 ${
-          selected ? 'border-white/25' : 'border-neutral-300'
-        }`}
-      >
-        Edit
-      </Link>
+      {canEdit && (
+        <Link
+          to="/edit/$courseId"
+          params={{ courseId: id }}
+          className={`block border-t px-4 py-2 text-center text-sm font-medium leading-[21px] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 ${
+            selected ? 'border-white/25' : 'border-neutral-300'
+          }`}
+        >
+          Edit
+        </Link>
+      )}
     </div>
   );
 };
 
 export const TermPage = ({ schedule }: TermPageProps) => {
+  const { isAuthenticated } = useAuth();
   const [selectedTerm, setSelectedTerm] = useState<Term>('Fall');
   const [selectedCourses, setSelectedCourses] = useSelectedCourses();
   const [isPlanOpen, setIsPlanOpen] = useState(false);
@@ -138,6 +143,7 @@ export const TermPage = ({ schedule }: TermPageProps) => {
               course={course}
               selected={selected}
               unavailable={isUnavailable(course, others)}
+              canEdit={isAuthenticated}
               onToggle={() => toggleCourse(id)}
             />
           );

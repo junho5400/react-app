@@ -8,6 +8,7 @@ import {
   stubDatabaseSubscription,
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
+import { setTestUser, stubAuthListener, testUser } from './test-utils/firebaseAuth';
 
 const { mockGetDatabase, mockOnValue, mockRef, mockUpdate } = vi.hoisted(() => ({
   mockGetDatabase: vi.fn(() => ({})),
@@ -23,6 +24,28 @@ vi.mock('firebase/database', () => ({
   update: mockUpdate,
 }));
 
+const {
+  mockGetAuth,
+  mockOnAuthStateChanged,
+  mockGoogleAuthProvider,
+  mockSignInWithPopup,
+  mockSignOut,
+} = vi.hoisted(() => ({
+  mockGetAuth: vi.fn(() => ({})),
+  mockOnAuthStateChanged: vi.fn(() => vi.fn()),
+  mockGoogleAuthProvider: vi.fn(),
+  mockSignInWithPopup: vi.fn(() => Promise.resolve({})),
+  mockSignOut: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock('firebase/auth', () => ({
+  getAuth: mockGetAuth,
+  onAuthStateChanged: mockOnAuthStateChanged,
+  GoogleAuthProvider: mockGoogleAuthProvider,
+  signInWithPopup: mockSignInWithPopup,
+  signOut: mockSignOut,
+}));
+
 beforeEach(() => {
   mockGetDatabase.mockReset();
   mockOnValue.mockReset();
@@ -32,6 +55,16 @@ beforeEach(() => {
   mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
   mockUpdate.mockImplementation(() => Promise.resolve());
   stubDatabaseSubscription(mockOnValue);
+  mockGetAuth.mockReset();
+  mockOnAuthStateChanged.mockReset();
+  mockGoogleAuthProvider.mockReset();
+  mockSignInWithPopup.mockReset();
+  mockSignOut.mockReset();
+  mockGetAuth.mockReturnValue({});
+  mockSignInWithPopup.mockImplementation(() => Promise.resolve({}));
+  mockSignOut.mockImplementation(() => Promise.resolve());
+  setTestUser(testUser);
+  stubAuthListener(mockOnAuthStateChanged);
 });
 
 const schedule = {

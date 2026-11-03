@@ -7,10 +7,29 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TermPage } from './TermPage';
 import type { CourseSchedule } from '../services/courseSchedule';
 import { SelectedCoursesProvider } from '../services/scheduleContext';
+import { setTestUser, stubAuthListener, testUser } from '../test-utils/firebaseAuth';
+
+const { mockGetAuth, mockOnAuthStateChanged } = vi.hoisted(() => ({
+  mockGetAuth: vi.fn(() => ({})),
+  mockOnAuthStateChanged: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('firebase/auth', () => ({
+  getAuth: mockGetAuth,
+  onAuthStateChanged: mockOnAuthStateChanged,
+}));
+
+beforeEach(() => {
+  mockGetAuth.mockReset();
+  mockOnAuthStateChanged.mockReset();
+  mockGetAuth.mockReturnValue({});
+  setTestUser(testUser);
+  stubAuthListener(mockOnAuthStateChanged);
+});
 
 const schedule: CourseSchedule = {
   title: 'Test Schedule',

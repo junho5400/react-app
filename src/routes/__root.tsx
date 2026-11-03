@@ -1,5 +1,6 @@
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { Banner } from '../components/Banner';
 import { parseCourseSchedule } from '../services/courseSchedule';
 import { ScheduleContextProvider, SelectedCoursesProvider } from '../services/scheduleContext';
 import { useDbData } from '../utilities/firebase';
@@ -45,6 +46,7 @@ function RootComponent() {
   return (
     <main className="p-2 font-sans text-neutral-900">
       <h1 className="mb-4 text-2xl font-semibold">{title}</h1>
+      <Banner />
       {content}
     </main>
   );

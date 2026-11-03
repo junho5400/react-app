@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
 import { ref, update } from 'firebase/database';
+import { useAuth } from '../hooks/useAuth';
 import { useSchedule } from '../services/scheduleContext';
 import type { Course } from '../services/courseSchedule';
 import { courseResolver, type CourseFormData } from '../utilities/courseValidation';
@@ -155,6 +156,7 @@ function EditCourseComponent() {
   const { courseId } = Route.useParams();
   const schedule = useSchedule();
   const navigate = useNavigate();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const course = schedule.courses[courseId];
 
   const handleCancel = () => {
@@ -164,6 +166,29 @@ function EditCourseComponent() {
   const handleSaved = () => {
     void navigate({ to: '/' });
   };
+
+  if (authLoading) {
+    return (
+      <section aria-label="Edit course">
+        <p role="status">Checking sign-in status...</p>
+      </section>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <section aria-label="Edit course">
+        <p role="alert">You must be signed in to edit courses.</p>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="mt-4 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100"
+        >
+          Cancel
+        </button>
+      </section>
+    );
+  }
 
   if (course === undefined) {
     return (

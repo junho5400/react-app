@@ -1,0 +1,13 @@
+{
+  "rules": {
+    "schedule": {
+      ".read": true,
+      "courses": {
+        "$courseId": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['title', 'term', 'number', 'meets'])"
+        }
+      }
+    }
+  }
+}
