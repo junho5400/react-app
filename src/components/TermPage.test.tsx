@@ -13,6 +13,8 @@ import type { CourseSchedule } from '../services/courseSchedule';
 import { SelectedCoursesProvider } from '../services/scheduleContext';
 import { setTestUser, stubAuthListener, testUser } from '../test-utils/firebaseAuth';
 
+vi.mock('../hooks/useAdmin', () => ({ useAdmin: () => ({ isAdmin: true }) }));
+
 const { mockGetAuth, mockOnAuthStateChanged } = vi.hoisted(() => ({
   mockGetAuth: vi.fn(() => ({})),
   mockOnAuthStateChanged: vi.fn(() => vi.fn()),

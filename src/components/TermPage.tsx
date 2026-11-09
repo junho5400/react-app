@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import type { Course, CourseSchedule } from '../services/courseSchedule';
-import { useAuth } from '../hooks/useAuth';
+import { useAdmin } from '../hooks/useAdmin';
 import { isUnavailable } from '../utilities/timeConflicts';
 import { TermSelector, type Term } from './TermSelector';
 import { CoursePlanModal } from './CoursePlanModal';
@@ -82,7 +82,7 @@ const CourseCard = ({ id, course, selected, unavailable, canEdit, onToggle }: Co
 };
 
 export const TermPage = ({ schedule }: TermPageProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isAdmin } = useAdmin();
   const [selectedTerm, setSelectedTerm] = useState<Term>('Fall');
   const [selectedCourses, setSelectedCourses] = useSelectedCourses();
   const [isPlanOpen, setIsPlanOpen] = useState(false);
@@ -143,7 +143,7 @@ export const TermPage = ({ schedule }: TermPageProps) => {
               course={course}
               selected={selected}
               unavailable={isUnavailable(course, others)}
-              canEdit={isAuthenticated}
+              canEdit={isAdmin}
               onToggle={() => toggleCourse(id)}
             />
           );

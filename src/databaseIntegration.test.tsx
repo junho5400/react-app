@@ -5,7 +5,7 @@ import App from './App';
 import {
   emitDatabaseError,
   emitDatabaseValue,
-  stubDatabaseSubscription,
+  stubAdminSubscription,
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
 import { setTestUser, stubAuthListener, testUser } from './test-utils/firebaseAuth';
@@ -54,7 +54,7 @@ beforeEach(() => {
   mockGetDatabase.mockReturnValue({});
   mockRef.mockImplementation((_database: unknown, path: string) => ({ path }));
   mockUpdate.mockImplementation(() => Promise.resolve());
-  stubDatabaseSubscription(mockOnValue);
+  stubAdminSubscription(mockOnValue);
   mockGetAuth.mockReset();
   mockOnAuthStateChanged.mockReset();
   mockGoogleAuthProvider.mockReset();

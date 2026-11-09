@@ -7,7 +7,7 @@ export type ValueCallback = (snapshot: DatabaseSnapshot) => void;
 export type CancelCallback = (error: Error) => void;
 
 export const lastValueCallback = (mockOnValue: Mock): ValueCallback => {
-  const call = mockOnValue.mock.calls.at(-1);
+  const call = mockOnValue.mock.calls.findLast((call) => call[0]?.path === '/schedule') ?? mockOnValue.mock.calls.at(-1);
   if (call === undefined) {
     throw new Error('Expected onValue to have been called.');
   }
@@ -15,7 +15,7 @@ export const lastValueCallback = (mockOnValue: Mock): ValueCallback => {
 };
 
 const lastCancelCallback = (mockOnValue: Mock): CancelCallback => {
-  const callback = mockOnValue.mock.calls.at(-1)?.[2] as CancelCallback | undefined;
+  const callback = (mockOnValue.mock.calls.findLast((call) => call[0]?.path === '/schedule') ?? mockOnValue.mock.calls.at(-1))?.[2] as CancelCallback | undefined;
   if (callback === undefined) {
     throw new Error('Expected onValue to have been called with an error callback.');
   }
@@ -51,5 +51,13 @@ export const stubDatabaseSubscription = (mockOnValue: Mock): void => {
 export const waitForSubscription = async (mockOnValue: Mock): Promise<void> => {
   await waitFor(() => {
     expect(mockOnValue).toHaveBeenCalled();
+  });
+};
+
+// Explicit role fixture for existing administrator editing regressions.
+export const stubAdminSubscription = (mockOnValue: Mock): void => {
+  mockOnValue.mockImplementation((reference: { path: string }, callback: ValueCallback) => {
+    if (reference.path.startsWith('/admins/')) callback({ val: () => true });
+    return vi.fn();
   });
 };

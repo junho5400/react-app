@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { FieldErrors, UseFormRegister } from 'react-hook-form';
 import { ref, update } from 'firebase/database';
-import { useAuth } from '../hooks/useAuth';
+import { useAdmin } from '../hooks/useAdmin';
 import { useSchedule } from '../services/scheduleContext';
 import type { Course } from '../services/courseSchedule';
 import { courseResolver, type CourseFormData } from '../utilities/courseValidation';
@@ -52,6 +52,7 @@ interface EditCourseFormProps {
   course: Course;
   onCancel: () => void;
   onSaved: () => void;
+  canEdit: boolean;
 }
 
 const isSameCourseData = (data: CourseFormData, course: Course): boolean =>
@@ -60,10 +61,17 @@ const isSameCourseData = (data: CourseFormData, course: Course): boolean =>
   data.number === course.number &&
   data.meets === course.meets;
 
-const EditCourseForm = ({ courseId, course, onCancel, onSaved }: EditCourseFormProps) => {
+const EditCourseForm = ({ courseId, course, onCancel, onSaved, canEdit }: EditCourseFormProps) => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saveInFlight = useRef(false);
+  const permission = useRef(false);
+  useLayoutEffect(() => {
+    permission.current = canEdit;
+    return () => {
+      permission.current = false;
+    };
+  }, [canEdit]);
   const {
     register,
     handleSubmit,
@@ -88,28 +96,24 @@ const EditCourseForm = ({ courseId, course, onCancel, onSaved }: EditCourseFormP
     course,
   );
   const hasErrors = Object.keys(errors).length > 0;
-  const submitDisabled = hasNoChanges || hasErrors || !isValid || isSubmitting || isSaving;
+  const submitDisabled = !canEdit || hasNoChanges || hasErrors || !isValid || isSubmitting || isSaving;
 
   const onSubmit = async (data: CourseFormData) => {
-    if (saveInFlight.current) return;
+    if (!permission.current || saveInFlight.current) return;
     // Never write unchanged values, even when submitted programmatically.
     if (isSameCourseData(data, course)) return;
     saveInFlight.current = true;
     setIsSaving(true);
     setSaveError(null);
     try {
-      // update() merges these fields into the existing course only; sibling
-      // courses and unrelated /schedule fields are left untouched. Saving
-      // requires database rules permitting writes at
-      // /schedule/courses/$courseId (for example, for signed-in users);
-      // unrestricted public write access must remain disabled.
+      // The database rules independently enforce the current UID membership.
       await update(ref(database, `/schedule/courses/${courseId}`), {
         title: data.title,
         term: data.term,
         number: data.number,
         meets: data.meets,
       });
-      onSaved();
+      if (permission.current) onSaved();
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'An unexpected error occurred.';
       setSaveError(
@@ -156,7 +160,7 @@ function EditCourseComponent() {
   const { courseId } = Route.useParams();
   const schedule = useSchedule();
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading, error } = useAdmin();
   const course = schedule.courses[courseId];
 
   const handleCancel = () => {
@@ -167,18 +171,24 @@ function EditCourseComponent() {
     void navigate({ to: '/' });
   };
 
-  if (authLoading) {
+  if (loading) {
     return (
       <section aria-label="Edit course">
-        <p role="status">Checking sign-in status...</p>
+        <p role="status">Checking edit permissions...</p>
       </section>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAdmin) {
     return (
       <section aria-label="Edit course">
-        <p role="alert">You must be signed in to edit courses.</p>
+        <p role="alert">
+          {error
+            ? 'Unable to verify administrator access. Please try again later.'
+            : user
+              ? 'Only administrators can edit courses.'
+              : 'You must be signed in to edit courses.'}
+        </p>
         <button
           type="button"
           onClick={handleCancel}
@@ -211,7 +221,8 @@ function EditCourseComponent() {
         Edit {course.term} CS {course.number}
       </h2>
       <EditCourseForm
-        key={courseId}
+        key={`${user?.uid}:${courseId}`}
+        canEdit={isAdmin}
         courseId={courseId}
         course={course}
         onCancel={handleCancel}

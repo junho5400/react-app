@@ -6,7 +6,7 @@ import { routeTree } from './routeTree.gen';
 import { useAuth } from './hooks/useAuth';
 import {
   emitDatabaseValue,
-  stubDatabaseSubscription,
+  stubAdminSubscription,
   waitForSubscription,
 } from './test-utils/realtimeDatabase';
 import {
@@ -69,7 +69,7 @@ beforeEach(() => {
   mockUpdate.mockImplementation(() => Promise.resolve());
   mockSignInWithPopup.mockImplementation(() => Promise.resolve({}));
   mockSignOut.mockImplementation(() => Promise.resolve());
-  stubDatabaseSubscription(mockOnValue);
+  stubAdminSubscription(mockOnValue);
   setTestUser(null);
   stubAuthListener(mockOnAuthStateChanged);
 });
@@ -221,7 +221,7 @@ describe('Conditional edit access', () => {
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
-  it('shows Edit links to signed-in users', async () => {
+  it('shows Edit links to administrators', async () => {
     setTestUser(testUser);
     await renderAt('/');
 
@@ -240,7 +240,7 @@ describe('Conditional edit access', () => {
     await screen.findByRole('button', { name: /CS 101/ });
   });
 
-  it('opens the edit form through its URL for signed-in users', async () => {
+  it('opens the edit form through its URL for administrators', async () => {
     setTestUser(testUser);
     await renderAt('/edit/A');
 
