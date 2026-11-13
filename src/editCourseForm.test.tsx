@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import {
@@ -82,7 +82,11 @@ const openEditForm = async () => {
   // The App router persists across tests, so only navigate when on the list page.
   if (screen.queryByRole('heading', { name: 'Edit Fall CS 101' }) === null) {
     await screen.findByRole('button', { name: /CS 101/ });
-    fireEvent.click(screen.getAllByRole('link', { name: 'Edit' })[0]);
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('link', { name: 'Edit' })[0]);
+      // Navigation lazily imports the edit route; settle it before querying the form.
+      await vi.dynamicImportSettled();
+    });
     await screen.findByRole('heading', { name: 'Edit Fall CS 101' });
   }
   const form = container.querySelector('form');

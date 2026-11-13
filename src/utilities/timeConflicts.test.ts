@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, expect, it } from 'vitest';
-import { coursesConflict, isUnavailable } from './timeConflicts';
+import { coursesConflict, isUnavailable, parseMeeting } from './timeConflicts';
 import type { Course } from '../services/courseSchedule';
 
 const makeCourse = (term: string, meets: string): Course => ({
@@ -8,6 +8,24 @@ const makeCourse = (term: string, meets: string): Course => ({
   number: '101',
   meets,
   title: 'Test Course',
+});
+
+describe('parseMeeting', () => {
+  it.each([
+    ['MWF 9:00-9:50', { days: ['M', 'W', 'F'], start: 540, end: 590 }],
+    ['TuTh 14:00-15:20', { days: ['Tu', 'Th'], start: 840, end: 920 }],
+    [' M\t00:00-00:30 ', { days: ['M'], start: 0, end: 30 }],
+    ['SaSu 22:00-23:59', { days: ['Sa', 'Su'], start: 1320, end: 1439 }],
+  ])('parses %s into day tokens and minutes', (text, meeting) => {
+    expect(parseMeeting(text)).toEqual(meeting);
+  });
+
+  it.each(['', '   ', 'TBA', 'M', 'X 9:00-9:50', 'M 24:00-25:00',
+    'M 9:60-10:00', 'M 10:00-9:00', 'M 9:00-9:00', 'M 9:00-10:00-11:00',
+    'M 9:0-10:00', '9:00-10:00'])('does not invent a meeting for %j', (meets) => {
+    expect(parseMeeting(meets)).toBeNull();
+    expect(coursesConflict(makeCourse('Fall', meets), makeCourse('Fall', 'MWF 9:00-10:00'))).toBe(false);
+  });
 });
 
 describe('coursesConflict', () => {

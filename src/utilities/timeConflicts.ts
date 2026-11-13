@@ -1,12 +1,12 @@
 import type { Course } from '../services/courseSchedule';
 
-interface Meeting {
+export interface Meeting {
   days: string[];
   start: number;
   end: number;
 }
 
-const parseDays = (text: string): string[] => {
+const parseDays = (text: string): string[] | null => {
   const days: string[] = [];
   let i = 0;
   while (i < text.length) {
@@ -15,11 +15,12 @@ const parseDays = (text: string): string[] => {
       days.push(two);
       i += 2;
     } else {
+      if (!['M', 'W', 'F'].includes(text[i])) return null;
       days.push(text[i]);
       i += 1;
     }
   }
-  return days;
+  return [...new Set(days)];
 };
 
 const parseTime = (text: string): number | null => {
@@ -31,17 +32,13 @@ const parseTime = (text: string): number | null => {
   return hours * 60 + minutes;
 };
 
-const parseMeeting = (meets: string): Meeting | null => {
-  const trimmed = meets.trim();
-  if (!trimmed) return null;
-  const space = trimmed.lastIndexOf(' ');
-  if (space === -1) return null;
-  const days = parseDays(trimmed.slice(0, space));
-  const [rawStart, rawEnd] = trimmed.slice(space + 1).split('-');
-  if (rawStart === undefined || rawEnd === undefined) return null;
-  const start = parseTime(rawStart);
-  const end = parseTime(rawEnd);
-  if (start === null || end === null || days.length === 0 || start >= end) return null;
+export const parseMeeting = (meets: string): Meeting | null => {
+  const match = /^(\S+)\s+(\d{1,2}:\d{2})-(\d{1,2}:\d{2})$/.exec(meets.trim());
+  if (!match) return null;
+  const days = parseDays(match[1]);
+  const start = parseTime(match[2]);
+  const end = parseTime(match[3]);
+  if (start === null || end === null || !days?.length || start >= end) return null;
   return { days, start, end };
 };
 

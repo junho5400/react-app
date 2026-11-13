@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -72,6 +72,32 @@ const renderWithRouter = async () => {
 };
 
 describe('TermPage time conflicts', () => {
+  it('uses shared selections in the timetable without changing the main-page term', async () => {
+    await renderWithRouter();
+    fireEvent.click(card('101'));
+    fireEvent.click(screen.getByRole('button', { name: 'Spring' }));
+    fireEvent.click(card('101'));
+    fireEvent.click(screen.getByRole('button', { name: 'Course Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Weekly View' }));
+    expect(screen.getAllByRole('article', { name: /CS 101: Alpha,/ })).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText('Timetable term'), { target: { value: 'Spring' } });
+    expect(screen.getAllByRole('article', { name: /Alpha Spring/ })).toHaveLength(3);
+    fireEvent.change(screen.getByLabelText('Timetable term'), { target: { value: 'Winter' } });
+    expect(screen.getByText('No courses selected for Winter.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('button', { name: 'Spring' })).toHaveAttribute('aria-pressed', 'true');
+    expect(card('101')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Fall' }));
+    expect(card('102')).toBeDisabled();
+    fireEvent.click(card('101'));
+    expect(card('102')).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Course Plan' }));
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
+    expect(dialog.queryByText('Fall CS 101: Alpha')).not.toBeInTheDocument();
+    expect(dialog.getByText('Spring CS 101: Alpha Spring')).toBeInTheDocument();
+  });
+
   it('disables conflicting courses but keeps selected ones selectable', async () => {
     await renderWithRouter();
 

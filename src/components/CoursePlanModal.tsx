@@ -1,58 +1,87 @@
-import type { Course } from '../services/courseSchedule';
-
-interface SelectedCourseEntry {
-  id: string;
-  course: Course;
-}
+import { useState } from 'react';
+import { WeeklyTimetable, type SelectedCourseEntry } from './WeeklyTimetable';
+import type { Term } from './TermSelector';
 
 interface CoursePlanModalProps {
   selectedCourses: SelectedCourseEntry[];
   onClose: () => void;
 }
 
-export const CoursePlanModal = ({ selectedCourses, onClose }: CoursePlanModalProps) => (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-    onClick={onClose}
-    data-testid="course-plan-overlay"
-  >
+export const CoursePlanModal = ({ selectedCourses, onClose }: CoursePlanModalProps) => {
+  const [view, setView] = useState<'List' | 'Weekly View'>('List');
+  const [term, setTerm] = useState<Term>('Fall');
+
+  return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Course plan"
-      onClick={(event) => event.stopPropagation()}
-      className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-md bg-white p-6 shadow-lg"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+      data-testid="course-plan-overlay"
     >
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">Course Plan</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100"
-        >
-          Close
-        </button>
-      </div>
-      {selectedCourses.length === 0 ? (
-        <div className="text-sm leading-6 text-neutral-900">
-          <p className="mb-2">No courses have been selected yet.</p>
-          <p>
-            To select courses, click on a course card. Click a selected course again to remove
-            it from your plan.
-          </p>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Course plan"
+        onClick={(event) => event.stopPropagation()}
+        className={`max-h-[80vh] w-full overflow-y-auto rounded-md bg-white p-6 shadow-lg ${view === 'List' ? 'max-w-lg' : 'max-w-5xl'}`}
+      >
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-semibold">Course Plan</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-100"
+          >
+            Close
+          </button>
         </div>
-      ) : (
-        <ul className="divide-y divide-neutral-200">
-          {selectedCourses.map(({ id, course }) => (
-            <li key={id} className="py-3">
-              <p className="text-sm font-medium">
-                {course.term} CS {course.number}: {course.title}
-              </p>
-              <p className="text-sm text-neutral-600">{course.meets}</p>
-            </li>
+        <div role="group" aria-label="Course plan view" className="mb-4 flex gap-2">
+          {(['List', 'Weekly View'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => setView(option)}
+              className={`rounded-md border px-4 py-2 text-sm font-medium ${view === option ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100'}`}
+            >
+              {option}
+            </button>
           ))}
-        </ul>
-      )}
+        </div>
+        {view === 'Weekly View' ? (
+          <>
+            <label className="mb-4 flex items-center gap-2 text-sm font-medium">
+              Timetable term
+              <select
+                value={term}
+                onChange={(event) => setTerm(event.target.value as Term)}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-2"
+              >
+                {(['Fall', 'Winter', 'Spring'] as const).map((option) => <option key={option}>{option}</option>)}
+              </select>
+            </label>
+            <WeeklyTimetable selectedCourses={selectedCourses} term={term} />
+          </>
+        ) : selectedCourses.length === 0 ? (
+          <div className="text-sm leading-6 text-neutral-900">
+            <p className="mb-2">No courses have been selected yet.</p>
+            <p>
+              To select courses, click on a course card. Click a selected course again to remove
+              it from your plan.
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-neutral-200">
+            {selectedCourses.map(({ id, course }) => (
+              <li key={id} className="py-3">
+                <p className="text-sm font-medium">
+                  {course.term} CS {course.number}: {course.title}
+                </p>
+                <p className="text-sm text-neutral-600">{course.meets}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
