@@ -45,14 +45,14 @@ const schedule: CourseSchedule = {
 
 const card = (number: string) => screen.getByRole('button', { name: new RegExp(`CS ${number}`) });
 
-const renderWithRouter = async () => {
+const renderWithRouter = async (courseSchedule: CourseSchedule = schedule) => {
   const rootRoute = createRootRoute();
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
     component: () => (
       <SelectedCoursesProvider>
-        <TermPage schedule={schedule} />
+        <TermPage schedule={courseSchedule} />
       </SelectedCoursesProvider>
     ),
   });
@@ -70,6 +70,94 @@ const renderWithRouter = async () => {
   await screen.findByRole('button', { name: /CS 101/ });
   return router;
 };
+
+describe('TermPage search', () => {
+  const search = (value: string) =>
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search courses' }), {
+      target: { value },
+    });
+  const courseList = () => within(screen.getByRole('region', { name: / courses$/ }));
+
+  it('updates number and title matches as the user types and clears back to all term courses', async () => {
+    await renderWithRouter();
+
+    search('10');
+    expect(courseList().getAllByRole('button')).toHaveLength(3);
+    search('102');
+    expect(courseList().getAllByRole('button')).toHaveLength(1);
+    expect(card('102')).toBeInTheDocument();
+    search('  aLpH  ');
+    expect(courseList().getAllByRole('button')).toHaveLength(1);
+    expect(card('101')).toBeInTheDocument();
+    expect(screen.queryByText('Alpha Spring')).not.toBeInTheDocument();
+
+    search('');
+    expect(courseList().getAllByRole('button')).toHaveLength(3);
+    search(' \t  ');
+    expect(courseList().getAllByRole('button')).toHaveLength(3);
+  });
+
+  it('normalizes repeated whitespace in both the query and the course title', async () => {
+    await renderWithRouter({
+      ...schedule,
+      courses: {
+        ...schedule.courses,
+        A: { ...schedule.courses.A, title: 'Introduction   to\tProgramming' },
+      },
+    });
+
+    search('  INTRODUCTION \t to   proGRamming  ');
+    expect(courseList().getAllByRole('button')).toHaveLength(1);
+    expect(card('101')).toBeInTheDocument();
+  });
+
+  it('keeps the query across terms and shows a message when the selected term has no matches', async () => {
+    await renderWithRouter();
+
+    search(' alpha ');
+    fireEvent.click(screen.getByRole('button', { name: 'Spring' }));
+    expect(screen.getByRole('searchbox')).toHaveValue(' alpha ');
+    expect(courseList().getByText('Alpha Spring')).toBeInTheDocument();
+    expect(courseList().queryByText('Alpha')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Winter' }));
+    expect(screen.getByRole('status')).toHaveTextContent('No matching courses in Winter.');
+    expect(courseList().queryByRole('button')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Fall' }));
+    search('unmatched');
+    expect(screen.getByRole('status')).toHaveTextContent('No matching courses in Fall.');
+    search('');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(courseList().getAllByRole('button')).toHaveLength(3);
+  });
+
+  it('preserves hidden selections, conflicts, the course plan, and the weekly timetable', async () => {
+    await renderWithRouter();
+    fireEvent.click(card('101'));
+    search('Beta');
+    expect(card('102')).toBeDisabled();
+    expect(courseList().queryByRole('button', { name: /CS 101/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Course Plan' }));
+    expect(within(screen.getByRole('dialog')).getByText('Fall CS 101: Alpha')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Weekly View' }));
+    expect(screen.getAllByRole('article', { name: /CS 101: Alpha,/ })).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    search('');
+    expect(card('101')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(card('101'));
+    expect(card('102')).toBeEnabled();
+  });
+
+  it('keeps the correct edit link on filtered courses', async () => {
+    const router = await renderWithRouter();
+    search('Beta');
+    fireEvent.click(screen.getByRole('link', { name: 'Edit' }));
+    await screen.findByText('Edit course');
+    expect(router.state.location.pathname).toBe('/edit/B');
+  });
+});
 
 describe('TermPage time conflicts', () => {
   it('uses shared selections in the timetable without changing the main-page term', async () => {

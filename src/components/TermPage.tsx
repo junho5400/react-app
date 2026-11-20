@@ -20,6 +20,8 @@ interface TermPageProps {
   schedule: CourseSchedule;
 }
 
+const normalizeSearch = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
+
 const CourseCard = ({ id, course, selected, unavailable, canEdit, onToggle }: CourseProps) => {
   const disabled = unavailable && !selected;
   return (
@@ -84,10 +86,15 @@ const CourseCard = ({ id, course, selected, unavailable, canEdit, onToggle }: Co
 export const TermPage = ({ schedule }: TermPageProps) => {
   const { isAdmin } = useAdmin();
   const [selectedTerm, setSelectedTerm] = useState<Term>('Fall');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourses, setSelectedCourses] = useSelectedCourses();
   const [isPlanOpen, setIsPlanOpen] = useState(false);
+  const normalizedQuery = normalizeSearch(searchQuery);
   const courses = Object.entries(schedule.courses).filter(
-    ([, course]) => course.term === selectedTerm,
+    ([, course]) =>
+      course.term === selectedTerm &&
+      (normalizeSearch(course.number).includes(normalizedQuery) ||
+        normalizeSearch(course.title).includes(normalizedQuery)),
   );
   const planEntries = selectedCourses.flatMap((id) => {
     const course = schedule.courses[id];
@@ -112,8 +119,18 @@ export const TermPage = ({ schedule }: TermPageProps) => {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <TermSelector selectedTerm={selectedTerm} onTermChange={setSelectedTerm} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <TermSelector selectedTerm={selectedTerm} onTermChange={setSelectedTerm} />
+          <input
+            type="search"
+            aria-label="Search courses"
+            placeholder="Search by course number or title"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 min-[640px]:w-72"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setIsPlanOpen(true)}
@@ -129,6 +146,11 @@ export const TermPage = ({ schedule }: TermPageProps) => {
         aria-label={`${selectedTerm} courses`}
         className="grid grid-cols-1 items-stretch gap-2 min-[480px]:grid-cols-2 min-[900px]:grid-cols-4"
       >
+        {courses.length === 0 && (
+          <p role="status" className="col-span-full py-4 text-sm text-neutral-600">
+            No matching courses in {selectedTerm}.
+          </p>
+        )}
         {courses.map(([id, course]) => {
           const selected = selectedCourses.includes(id);
           const others = selectedCourses.flatMap((selectedId) => {
